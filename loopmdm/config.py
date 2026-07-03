@@ -54,6 +54,20 @@ class ModelConfig:
         return self.n_layers - self.head_layers - self.mid_layers
 
     @property
+    def mask_id(self) -> int:
+        """Id of the absorbing mask token.
+
+        The mask is not a real token: the embedding table has ``vocab_size + 1``
+        rows (the extra row is the mask) while the LM head predicts ``vocab_size``
+        real tokens only.
+        """
+        return self.vocab_size
+
+    @property
+    def padded_vocab(self) -> int:
+        return self.vocab_size + 1
+
+    @property
     def d_head(self) -> int:
         return self.d_model // self.n_heads
 
