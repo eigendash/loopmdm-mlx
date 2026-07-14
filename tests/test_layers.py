@@ -134,8 +134,10 @@ def test_attention_is_bidirectional(cfg):
 
 
 def test_block_with_zero_adaln_is_a_plain_prenorm_block(cfg):
-    """The adaLN projection is zero-initialised, so modulation must be a no-op at init."""
+    """Zeroing the adaLN modulation must leave exactly a plain pre-norm block."""
     layer = init_layer_params(mx.random.key(8), cfg)
+    layer["ada"]["w"] = mx.zeros_like(layer["ada"]["w"])
+    layer["ada"]["b"] = mx.zeros_like(layer["ada"]["b"])
     x = mx.random.normal((1, cfg.seq_len, cfg.d_model), key=mx.random.key(9))
     t_emb = time_mlp(init_time_params(mx.random.key(10), cfg), mx.array([0.4]), cfg)
     cos, sin = rope_tables(cfg.seq_len, cfg.d_head)

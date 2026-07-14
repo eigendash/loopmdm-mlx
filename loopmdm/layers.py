@@ -147,10 +147,10 @@ def block_forward(
 def init_layer_params(key: mx.array, cfg: ModelConfig) -> dict:
     """Initialise one block.
 
-    Weights are ``N(0, 0.02)``, biases are zero, and the adaLN modulation
-    projection is zero-initialised (DiT's ``zero_init_adaLN``).  With a zero
-    modulation the block starts out as a plain pre-norm transformer block, which
-    matters here because the mid-block is applied several times per forward pass.
+    Weights are ``N(0, 0.02)`` and biases are zero.  DiT zero-initialises the
+    adaLN projection; here it is deliberately *not* zero-initialised, because a
+    zero modulation would make the denoiser independent of the diffusion time
+    ``t`` for the first optimisation steps, and these toy runs are short.
     """
     keys = mx.random.split(key, 7)
     d, h = cfg.d_model, cfg.mlp_hidden
@@ -168,7 +168,10 @@ def init_layer_params(key: mx.array, cfg: ModelConfig) -> dict:
             "w1": lin(h, d, keys[4]), "b1": mx.zeros((h,)),
             "w2": lin(d, h, keys[5]), "b2": mx.zeros((d,)),
         },
-        "ada": {"w": mx.zeros((4 * d, cfg.time_dim)), "b": mx.zeros((4 * d,))},
+        "ada": {
+            "w": mx.random.normal((4 * d, cfg.time_dim), key=keys[6]) * 0.02,
+            "b": mx.zeros((4 * d,)),
+        },
     }
 
 
