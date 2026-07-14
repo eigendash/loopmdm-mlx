@@ -19,13 +19,16 @@ from .model import (
     unrolled_config,
 )
 from .schedule import Schedule, corrupt_tokens, sample_reverse_step
+from .train import TrainResult, mdm_loss, train_mdm
 
 __all__ = [
     "ModelConfig",
     "TrainConfig",
     "ForwardOutput",
     "Schedule",
+    "TrainResult",
     "corrupt_tokens",
+    "mdm_loss",
     "count_params",
     "forward",
     "forward_adaptive",
@@ -34,6 +37,7 @@ __all__ = [
     "num_parameters",
     "relative_hidden_change",
     "sample_reverse_step",
+    "train_mdm",
     "unroll_params",
     "unrolled_config",
 ]
