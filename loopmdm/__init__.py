@@ -27,6 +27,12 @@ from .model import (
     unroll_params,
     unrolled_config,
 )
+from .sampler import (
+    SampleTrace,
+    confidence_sample,
+    masked_prompt,
+    stochastic_sample,
+)
 from .schedule import Schedule, corrupt_tokens, sample_reverse_step
 from .train import TrainResult, mdm_loss, train_mdm
 
@@ -37,12 +43,15 @@ __all__ = [
     "VOCAB_SIZE",
     "TrainConfig",
     "ForwardOutput",
+    "SampleTrace",
     "Schedule",
     "TrainResult",
+    "confidence_sample",
     "corrupt_tokens",
     "decode",
     "encode",
     "generate_examples",
+    "masked_prompt",
     "mdm_loss",
     "count_params",
     "forward",
@@ -52,6 +61,7 @@ __all__ = [
     "num_parameters",
     "relative_hidden_change",
     "sample_reverse_step",
+    "stochastic_sample",
     "to_array",
     "train_mdm",
     "unroll_params",
