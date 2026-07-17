@@ -6,6 +6,15 @@ the loop count as an argument, and the schedules/samplers around it.
 """
 
 from .config import ModelConfig, TrainConfig
+from .data import (
+    MASK_ID,
+    VOCAB_SIZE,
+    Example,
+    decode,
+    encode,
+    generate_examples,
+    to_array,
+)
 from .model import (
     ForwardOutput,
     count_params,
@@ -22,12 +31,18 @@ from .schedule import Schedule, corrupt_tokens, sample_reverse_step
 from .train import TrainResult, mdm_loss, train_mdm
 
 __all__ = [
+    "Example",
+    "MASK_ID",
     "ModelConfig",
+    "VOCAB_SIZE",
     "TrainConfig",
     "ForwardOutput",
     "Schedule",
     "TrainResult",
     "corrupt_tokens",
+    "decode",
+    "encode",
+    "generate_examples",
     "mdm_loss",
     "count_params",
     "forward",
@@ -37,6 +52,7 @@ __all__ = [
     "num_parameters",
     "relative_hidden_change",
     "sample_reverse_step",
+    "to_array",
     "train_mdm",
     "unroll_params",
     "unrolled_config",

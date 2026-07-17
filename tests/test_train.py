@@ -128,24 +128,28 @@ def test_training_with_loops_still_learns(cfg):
     assert set(h["loop_count"] for h in result.history) == {1, 2, 3}
 
 
-def test_training_is_reproducible(cfg):
-    """Same seed -> same batches, times, masks, loop counts and (up to fp noise) weights.
+def test_training_is_reproducible_bit_for_bit_on_cpu(cfg):
+    """Same seed -> the same batches, times, masks, loop counts and weights.
 
-    The data pipeline is exactly reproducible because every draw comes from an
-    explicit key.  The weights agree only to float32 tolerance: some GPU
-    reductions are not bit-deterministic in MLX.
+    Every draw comes from an explicit key, so the data stream is reproducible
+    everywhere.  The weights are only bit-identical on the CPU device: several
+    MLX GPU reductions are not deterministic, which perturbs a run by ~1e-5
+    after 25 steps (see the README).
     """
     corpus = _easy_corpus(cfg)
     tc = TrainConfig(steps=25, batch_size=8, warmup=5, seed=3, max_loops=2)
-    a = train_mdm(cfg, tc, corpus, verbose=False)
-    b = train_mdm(cfg, tc, corpus, verbose=False)
+    previous = mx.default_device()
+    mx.set_default_device(mx.cpu)
+    try:
+        a = train_mdm(cfg, tc, corpus, verbose=False)
+        b = train_mdm(cfg, tc, corpus, verbose=False)
+    finally:
+        mx.set_default_device(previous)
+    assert [h["loss"] for h in a.history] == [h["loss"] for h in b.history]
     assert [h["loop_count"] for h in a.history] == [h["loop_count"] for h in b.history]
     assert [h["masked_fraction"] for h in a.history] == [h["masked_fraction"] for h in b.history]
-    for ha, hb in zip(a.history, b.history):
-        assert ha["loss"] == pytest.approx(hb["loss"], rel=1e-4)
     for (n1, x1), (n2, x2) in zip(mu.tree_flatten(a.params), mu.tree_flatten(b.params)):
-        assert n1 == n2
-        assert mx.allclose(x1, x2, rtol=1e-3, atol=1e-4).item()
+        assert n1 == n2 and mx.array_equal(x1, x2).item()
 
 
 def test_lr_schedule_warms_up_then_decays():
