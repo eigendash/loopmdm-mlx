@@ -97,12 +97,17 @@ class TrainConfig:
     # applies the exact continuous-time weight -alpha'(t) / (1 - alpha(t)).
     loss_weighting: str = "uniform"
     t_min: float = 0.02
+    # Upper bound of the sampled mask rate.  <1 keeps the sequence mostly
+    # readable, which is what makes the toy arithmetic task learnable here.
+    t_max: float = 1.0
 
     def __post_init__(self) -> None:
         if self.max_loops < 1:
             raise ValueError("max_loops must be >= 1")
         if self.loss_weighting not in ("uniform", "nelbo"):
             raise ValueError(f"unknown loss_weighting {self.loss_weighting!r}")
+        if not 0.0 <= self.t_max <= 1.0:
+            raise ValueError("t_max must lie in [0, 1]")
 
     def as_dict(self) -> dict:
         return asdict(self)

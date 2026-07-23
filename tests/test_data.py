@@ -21,7 +21,7 @@ from loopmdm.data import (
     to_array,
 )
 
-SEQ = 24
+SEQ = 16
 
 
 def test_vocabulary_is_consistent():
@@ -38,19 +38,17 @@ def test_vocabulary_is_consistent():
     assert decode([MASK_ID]) == "<mask>"
 
 
-def test_sum_examples_have_the_correct_two_digit_answer():
+def test_sum_examples_have_the_correct_answer():
     examples = generate_examples(200, SEQ, seed=1, task="sum")
     for e in examples:
         assert e.task == "sum"
-        assert e.answer_start > 0 and e.answer_end == e.answer_start + 2
+        assert e.answer_start > 0 and e.answer_end == e.answer_start + 1
         prefix = decode(e.tokens[1 : e.answer_start])
         assert prefix.endswith("=")
         addends = [int(x) for x in prefix[:-1].split("+")]
         assert 2 <= len(addends) <= 4
         assert all(0 <= a <= 9 for a in addends)
-        answer = decode(e.answer_ids)
-        assert answer == f"{sum(addends):02d}"
-        assert int(answer) < 100  # a two-digit field is enough
+        assert decode(e.answer_ids) == str(sum(addends) % 10)
 
 
 def test_parity_examples_have_the_correct_answer():
@@ -95,8 +93,8 @@ def test_answer_mask_selects_exactly_the_answer():
     examples = generate_examples(30, SEQ, seed=5, task="sum")
     for e in examples:
         mask = e.answer_mask()
-        assert mask.sum() == 2
-        assert np.array_equal(np.flatnonzero(mask), [e.answer_start, e.answer_start + 1])
+        assert mask.sum() == 1
+        assert np.array_equal(np.flatnonzero(mask), [e.answer_start])
         assert np.array_equal(e.tokens[mask], e.answer_ids)
 
 

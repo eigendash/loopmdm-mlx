@@ -55,23 +55,40 @@ def mdm_loss(
     max_loops: int = 1,
     mask: mx.array | None = None,
     t: mx.array | None = None,
+    ignore: mx.array | None = None,
+    always: mx.array | None = None,
+    realized_timestep: bool = False,
+    t_max: float = 1.0,
 ) -> MDMLoss:
     """One Monte-Carlo estimate of the training objective.
 
     ``t`` and ``mask`` can be supplied to make the estimate deterministic in
-    tests; otherwise they are sampled from ``key``.
+    tests; otherwise they are sampled from ``key``.  ``ignore`` marks positions
+    that are never corrupted and never contribute to the loss (padding) and
+    ``always`` marks positions that are *always* corrupted (the answer span in
+    the toy task, which keeps a clean gradient on the part being evaluated).
+    ``realized_timestep`` feeds the model the realised mask rate instead of the
+    sampled ``t``; combined with ``always`` this keeps the timestep consistent
+    with what inference does.
     """
     if key is None and (mask is None or t is None):
         raise ValueError("mdm_loss needs a key or an explicit (t, mask)")
     batch = tokens.shape[0]
     keys = mx.random.split(key, 3) if key is not None else [None, None, None]
     if t is None:
-        t = mx.random.uniform(shape=(batch,), key=keys[0])
+        t = mx.random.uniform(shape=(batch,), key=keys[0]) * t_max
     if loop_count is None:
         loop_count = sample_loop_count(max_loops, keys[2]) if key is not None else 1
     x_t, mask = corrupt_tokens(tokens, t, cfg.mask_id, schedule, key=keys[1], mask=mask)
+    if ignore is not None:
+        mask = mx.logical_and(mask, mx.logical_not(ignore))
+        x_t = mx.where(ignore, tokens, x_t)
+    if always is not None:
+        mask = mx.logical_or(mask, always)
+        x_t = mx.where(always, mx.full(tokens.shape, cfg.mask_id, dtype=tokens.dtype), x_t)
+    t_model = mx.mean(mask.astype(mx.float32), axis=1) if realized_timestep else t
 
-    out = forward(params, x_t, t, cfg, loop_count=loop_count)
+    out = forward(params, x_t, t_model, cfg, loop_count=loop_count)
     log_probs = out.logits - mx.logsumexp(out.logits, axis=-1, keepdims=True)
     target = mx.take_along_axis(log_probs, tokens[..., None], axis=-1)[..., 0]
     weights = masked_weight(mask, t, schedule, weighting)
@@ -125,6 +142,10 @@ def train_mdm(
     verbose: bool = True,
     log_every: int = 100,
     on_step: Callable[[int, dict], None] | None = None,
+    ignore: mx.array | None = None,
+    always: mx.array | None = None,
+    realized_timestep: bool = False,
+    t_max: float | None = None,
 ) -> TrainResult:
     """Train a (possibly looped) masked diffusion denoiser on a token corpus.
 
@@ -133,6 +154,8 @@ def train_mdm(
     """
     if key is None:
         key = mx.random.key(train_cfg.seed)
+    if t_max is None:
+        t_max = train_cfg.t_max
     params = init_params(cfg, key)
     optimizer = optim.AdamW(
         learning_rate=lambda step: mx.array(lr_at(int(step), train_cfg)),
@@ -155,6 +178,10 @@ def train_mdm(
                 step_key,
                 weighting=train_cfg.loss_weighting,
                 max_loops=train_cfg.max_loops,
+                ignore=None if ignore is None else ignore[idx],
+                always=None if always is None else always[idx],
+                realized_timestep=realized_timestep,
+                t_max=t_max,
             )
             lr = lr_at(step, train_cfg)
             return out.loss, (out.loop_count, out.masked_fraction, lr)

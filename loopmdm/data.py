@@ -36,17 +36,18 @@ PAD_ID, BOS_ID, EOS_ID = 0, 1, 2
 
 PARITY_MARK = "P"
 
+#: short templated sentences; they must fit in a :class:`ModelConfig` sequence
 TEXT_SENTENCES = [
-    "the cat sat on the mat",
-    "a dog ran to the park",
-    "the sun is hot today",
-    "we read a good book",
-    "the river is very cold",
-    "she wrote a long letter",
-    "the old tree fell down",
-    "birds sing in the morning",
-    "he walked to the market",
-    "the moon is bright tonight",
+    "the cat",
+    "a dog",
+    "the sun",
+    "old tree",
+    "birds",
+    "he ran",
+    "a map",
+    "the sea",
+    "cold river",
+    "she wrote",
 ]
 
 TASK_MIX = {"sum": 0.5, "parity": 0.25, "text": 0.25}
@@ -93,29 +94,36 @@ class Example:
         return mask
 
 
-def _arithmetic_text(rng: np.random.Generator, k: int, parity: bool) -> tuple[str, int]:
-    """Build the string and return it with the offset of the answer tokens."""
+def _arithmetic_text(rng: np.random.Generator, k: int, parity: bool) -> tuple[str, int, int]:
+    """Build the string and return it with the (start, length) of the answer.
+
+    The sum answer is a single digit, ``(a1 + ... + ak) mod 10``: the interesting
+    part is aggregating every addend, and one token keeps the answer span small
+    enough for the toy model to learn it in the experiment's budget.  The parity
+    answer is ``P`` followed by the parity bit.
+    """
     addends = rng.integers(0, 10, size=k)
     total = int(addends.sum())
     prefix = "+".join(str(int(a)) for a in addends)
     if parity:
         text = f"{prefix}?{PARITY_MARK}{total % 2}"
-        return text, len(text) - 2
-    text = f"{prefix}={total:02d}"
-    return text, len(text) - 2
+        return text, len(text) - 2, 2
+    text = f"{prefix}={total % 10}"
+    return text, len(text) - 1, 1
 
 
 def make_example(
     rng: np.random.Generator, seq_len: int, task: str, max_addends: int = 4
 ) -> Example:
     """One example of the requested task, padded/truncated to ``seq_len``."""
+    width = 0
     if task == "text":
         text = str(rng.choice(TEXT_SENTENCES))
         ids = [BOS_ID] + encode(text) + [EOS_ID]
         start = -1
     elif task in ("sum", "parity"):
         k = int(rng.integers(2, max_addends + 1))
-        text, offset = _arithmetic_text(rng, k, parity=(task == "parity"))
+        text, offset, width = _arithmetic_text(rng, k, parity=(task == "parity"))
         ids = [BOS_ID] + encode(text) + [EOS_ID]
         if len(ids) > seq_len:
             raise ValueError(
@@ -125,7 +133,7 @@ def make_example(
     else:
         raise ValueError(f"unknown task {task!r}")
 
-    end = start + 2 if start >= 0 else -1
+    end = start + width if start >= 0 else -1
     if len(ids) > seq_len:
         # only the templated sentences can be too long: keep <eos> at the end
         ids = ids[: seq_len - 1] + [EOS_ID]
