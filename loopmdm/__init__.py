@@ -15,6 +15,14 @@ from .data import (
     generate_examples,
     to_array,
 )
+from .metrics import (
+    answer_nll,
+    mask_to_mask_attention,
+    mid_attention_by_iteration,
+    span_exact_match,
+    span_token_accuracy,
+    total_layer_applications,
+)
 from .model import (
     ForwardOutput,
     count_params,
@@ -51,7 +59,10 @@ __all__ = [
     "decode",
     "encode",
     "generate_examples",
+    "answer_nll",
+    "mask_to_mask_attention",
     "masked_prompt",
+    "mid_attention_by_iteration",
     "mdm_loss",
     "count_params",
     "forward",
@@ -61,7 +72,10 @@ __all__ = [
     "num_parameters",
     "relative_hidden_change",
     "sample_reverse_step",
+    "span_exact_match",
+    "span_token_accuracy",
     "stochastic_sample",
+    "total_layer_applications",
     "to_array",
     "train_mdm",
     "unroll_params",
