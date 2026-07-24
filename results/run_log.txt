@@ -1,0 +1,58 @@
+LoopMDM toy experiment - Looped Diffusion Language Models (arXiv:2605.26106)
+==============================================================================
+vocab 44 (mask id 44), seq_len 12, addends 2..3
+train corpus (4096, 12), held-out (512, 12) {'parity': 252, 'sum': 260}
+model: 6 layers = head 1 + mid 2 (shared when looped) + tail 3, d_model 64, 4 heads
+training: 2500 steps for the baseline/looped/deep runs, lr 0.003, batch 64, grad clip 1.0, extra random masking t ~ U[0, 0.0], padding never corrupted
+
+training runs (the first three are iso-parameter; the deep baseline matches the looped model's per-step compute instead)
+run                    layers    params  steps  apps/step  total apps  loss first20  loss last20  wall s
+------------------------------------------------------------------------------
+mdm-baseline                6    312448   2500       6.00       15000        2.8750       1.3428    78.8
+mdm-baseline-matched        6    312448   3750       6.00       22500        2.8750       1.1438    85.3
+loopmdm                     6    312448   2500       8.94       22338        3.3849       1.3529    69.7
+deep-baseline               9    461632   2500       9.00       22500        2.9797       1.3468   122.6
+
+inference at the answer span (prompt visible, answer masked, confidence unmasking over the answer tokens)
+run                    seed   R  sum acc parity acc  all acc  ans NLL  apps/ex
+------------------------------------------------------------------------------
+mdm-baseline              0   1    0.077      0.508    0.289   1.0151       12
+mdm-baseline-matched      0   1    0.235      0.492    0.361   0.9291       12
+loopmdm                   0   1    0.081      0.524    0.299   1.0270       12
+loopmdm                   0   2    0.081      0.480    0.277   1.0187       16
+loopmdm                   0   4    0.081      0.512    0.293   1.0154       24
+deep-baseline             0   1    0.081      0.552    0.312   1.0145       18
+
+adaptive looping (stop when ||H^(k)-H^(k-1)||/||H^(k)|| < eps)
+seed   eps  sum acc parity acc  all acc  mean R  apps/ex     loops by step
+------------------------------------------------------------------------------
+   0 0.020    0.081      0.512    0.293    4.00       24         4.00 4.00
+   0 0.050    0.081      0.512    0.293    4.00       24         4.00 4.00
+   0 0.100    0.081      0.512    0.293    4.00       24         4.00 4.00
+   0 0.200    0.081      0.512    0.293    4.00       24         4.00 4.00
+
+mask-to-mask attention at t=0.5 (mass from masked queries to masked keys)
+run                    seed   R  per mid layer, per loop iteration    mean
+------------------------------------------------------------------------------
+mdm-baseline              0   1                      0.5748 0.6018  0.5883
+loopmdm                   0   1                      0.5322 0.5691  0.5507
+loopmdm                   0   2        0.5322 0.5691 0.6247 0.5999  0.5815
+loopmdm                   0   4 0.5322 0.5691 0.6247 0.5999 0.6357 0.6339 0.6448 0.6666  0.6134
+
+summary (mean over seeds)
+run                       params   R  sum acc parity acc  all acc  ans NLL  apps/ex
+------------------------------------------------------------------------------
+mdm-baseline              312448   1    0.077      0.508    0.289   1.0151     12.0
+mdm-baseline-matched      312448   1    0.235      0.492    0.361   0.9291     12.0
+loopmdm                   312448   1    0.081      0.524    0.299   1.0270     12.0
+loopmdm                   312448   2    0.081      0.480    0.277   1.0187     16.0
+loopmdm                   312448   4    0.081      0.512    0.293   1.0154     24.0
+deep-baseline             461632   1    0.081      0.552    0.312   1.0145     18.0
+
+adaptive summary (mean over seeds)
+  eps 0.020: sum 0.081 parity 0.512 all 0.293 mean R 4.00 apps 24.0
+  eps 0.050: sum 0.081 parity 0.512 all 0.293 mean R 4.00 apps 24.0
+  eps 0.100: sum 0.081 parity 0.512 all 0.293 mean R 4.00 apps 24.0
+  eps 0.200: sum 0.081 parity 0.512 all 0.293 mean R 4.00 apps 24.0
+
+total wall clock 357.9s
